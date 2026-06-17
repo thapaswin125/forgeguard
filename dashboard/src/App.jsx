@@ -62,10 +62,13 @@ function ScenarioCard({ scenario, onRun }) {
 
   const handleRun = async () => {
     setLoading(true)
-    await onRun(scenario.id, stealth)
-    setLoading(false)
-    setRan(true)
-    setTimeout(() => setRan(false), 3000)
+    try {
+      await onRun(scenario.id, stealth)
+      setRan(true)
+      setTimeout(() => setRan(false), 3000)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -149,6 +152,7 @@ function TriageDrawer({ alert, onClose }) {
     fetch(`${API}/alerts/${alert.id}`)
       .then(r => r.json())
       .then(setDetail)
+      .catch(() => {})
   }, [alert])
 
   const generateRunbook = async () => {
@@ -306,17 +310,21 @@ export default function App() {
   }
 
   const fetchAlerts = useCallback(async () => {
-    const res = await fetch(`${API}/alerts`)
-    setAlerts(await res.json())
+    try {
+      const res = await fetch(`${API}/alerts`)
+      setAlerts(await res.json())
+    } catch {}
   }, [])
 
   const fetchStats = useCallback(async () => {
-    const res = await fetch(`${API}/stats`)
-    setStats(await res.json())
+    try {
+      const res = await fetch(`${API}/stats`)
+      setStats(await res.json())
+    } catch {}
   }, [])
 
   useEffect(() => {
-    fetch(`${API}/scenarios`).then(r => r.json()).then(setScenarios)
+    fetch(`${API}/scenarios`).then(r => r.json()).then(setScenarios).catch(() => {})
     fetchAlerts()
     fetchStats()
     const interval = setInterval(() => { fetchAlerts(); fetchStats() }, 5000)
@@ -324,28 +332,36 @@ export default function App() {
   }, [fetchAlerts, fetchStats])
 
   const handleRun = async (scenarioId, stealth) => {
-    const res = await fetch(`${API}/simulate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scenario_id: scenarioId, stealth })
-    })
-    const data = await res.json()
-    if (data.alerts?.length > 0) {
-      showToast(`${data.alerts.length} alert(s) fired`)
-    } else {
-      showToast('No detections fired', 'info')
+    try {
+      const res = await fetch(`${API}/simulate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenario_id: scenarioId, stealth })
+      })
+      const data = await res.json()
+      if (data.alerts?.length > 0) {
+        showToast(`${data.alerts.length} alert(s) fired`)
+      } else {
+        showToast('No detections fired', 'info')
+      }
+      fetchAlerts()
+      fetchStats()
+    } catch (e) {
+      showToast(e.message || 'Simulation failed', 'info')
     }
-    fetchAlerts()
-    fetchStats()
   }
 
   const handleReset = async () => {
-    await fetch(`${API}/reset`, { method: 'DELETE' })
-    setAlerts([])
-    setStats(null)
-    setSelectedAlert(null)
-    fetchStats()
-    showToast('Lab reset')
+    try {
+      await fetch(`${API}/reset`, { method: 'DELETE' })
+      setAlerts([])
+      setStats(null)
+      setSelectedAlert(null)
+      fetchStats()
+      showToast('Lab reset')
+    } catch (e) {
+      showToast(e.message || 'Reset failed', 'info')
+    }
   }
 
   const coverage = stats ? Math.round((stats.techniques_fired?.length || 0) / 5 * 100) : 0

@@ -44,7 +44,7 @@ def generate_runbook(alert: dict, matched_events: list) -> str:
     prompt = _build_prompt(alert, matched_events)
 
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=1000,
         system="""You are a senior SOC analyst writing a concise, actionable triage runbook for a junior analyst.
 Be specific, practical, and direct. Use plain English. No unnecessary jargon.
