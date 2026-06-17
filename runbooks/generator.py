@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-import anthropic
+import google.generativeai as genai
 
 OUTPUT_DIR = Path(__file__).parent / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -39,14 +39,11 @@ Write a triage runbook for a junior SOC analyst responding to this alert.
 
 
 def generate_runbook(alert: dict, matched_events: list) -> str:
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-    prompt = _build_prompt(alert, matched_events)
-
-    message = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1000,
-        system="""You are a senior SOC analyst writing a concise, actionable triage runbook for a junior analyst.
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-pro",
+        system_instruction="""You are a senior SOC analyst writing a concise, actionable triage runbook for a junior analyst.
 Be specific, practical, and direct. Use plain English. No unnecessary jargon.
 
 Structure your response EXACTLY as follows with these markdown headers:
@@ -55,11 +52,12 @@ Structure your response EXACTLY as follows with these markdown headers:
 ## What Likely Happened
 ## Immediate Containment Steps
 ## Evidence to Collect
-## False Positive Check""",
-        messages=[{"role": "user", "content": prompt}]
+## False Positive Check"""
     )
 
-    runbook_text = message.content[0].text
+    prompt = _build_prompt(alert, matched_events)
+    response = model.generate_content(prompt)
+    runbook_text = response.text
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     alert_id_short = alert['id'][:8]
