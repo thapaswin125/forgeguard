@@ -42,7 +42,7 @@ def generate_runbook(alert: dict, matched_events: list) -> str:
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-pro",
+        model_name="gemini-2.0-flash",
         system_instruction="""You are a senior SOC analyst writing a concise, actionable triage runbook for a junior analyst.
 Be specific, practical, and direct. Use plain English. No unnecessary jargon.
 
