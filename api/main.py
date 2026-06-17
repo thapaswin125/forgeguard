@@ -161,8 +161,8 @@ def get_alert(alert_id: str):
 
 @app.post("/api/alerts/{alert_id}/runbook")
 def create_runbook(alert_id: str):
-    if not os.getenv("GEMINI_API_KEY"):
-        raise HTTPException(status_code=400, detail="GEMINI_API_KEY not set in .env")
+    if not os.getenv("GROQ_API_KEY"):
+        raise HTTPException(status_code=400, detail="GROQ_API_KEY not set in .env")
 
     conn = get_db()
     row = conn.execute("SELECT * FROM alerts WHERE id=?", (alert_id,)).fetchone()

@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-import google.generativeai as genai
+from groq import Groq
 
 OUTPUT_DIR = Path(__file__).parent / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -39,11 +39,16 @@ Write a triage runbook for a junior SOC analyst responding to this alert.
 
 
 def generate_runbook(alert: dict, matched_events: list) -> str:
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-    model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
-        system_instruction="""You are a senior SOC analyst writing a concise, actionable triage runbook for a junior analyst.
+    prompt = _build_prompt(alert, matched_events)
+
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {
+                "role": "system",
+                "content": """You are a senior SOC analyst writing a concise, actionable triage runbook for a junior analyst.
 Be specific, practical, and direct. Use plain English. No unnecessary jargon.
 
 Structure your response EXACTLY as follows with these markdown headers:
@@ -53,20 +58,22 @@ Structure your response EXACTLY as follows with these markdown headers:
 ## Immediate Containment Steps
 ## Evidence to Collect
 ## False Positive Check"""
+            },
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=1000,
     )
 
-    prompt = _build_prompt(alert, matched_events)
-    response = model.generate_content(prompt)
-    runbook_text = response.text
+    runbook_text = response.choices[0].message.content
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     alert_id_short = alert['id'][:8]
     filename = OUTPUT_DIR / f"{alert['rule_id']}_{alert_id_short}_{timestamp}.md"
 
     header = f"""# ForgeGuard Runbook — {alert['name']}
-**Generated:** {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}  
-**Alert ID:** {alert['id']}  
-**Severity:** {alert['severity'].upper()}  
+**Generated:** {datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}
+**Alert ID:** {alert['id']}
+**Severity:** {alert['severity'].upper()}
 **MITRE:** [{alert['mitre_id']}](https://attack.mitre.org/techniques/{alert['mitre_id'].replace('.', '/')})
 
 ---
